@@ -4,7 +4,7 @@
 //!
 //! Implement [`Searchable`] to perform breadth-first or depth-first searching, and implement [`ScoredSearchable`] to perform heuristically guided search space exploration. Pass them to the [`Searcher`] and [`ScoredSearcher`] structs respectively to create iterators that will search the space for a solution.
 //!
-//! Implement `Eq + Hash + Clone` for your search space state type to benefit from prior explored state checking optimization; if youre unable to, then use the [`ScoredSearcher`] or [`ScoredUnhashableSearcher`] iterators, which do not require these additional bounds, but will likely explore the space much less efficiently.
+//! Implement `Eq + Hash + Clone` for your search space state type to benefit from prior explored state checking optimization; if youre unable to, then use the [`UnhashableSearcher`] or [`ScoredUnhashableSearcher`] iterators, which do not require these additional bounds, but will likely explore the space much less efficiently.
 //!
 //! When implementing [`ScoredSearcher`], make sure that higher scoring states are closer to a solution.
 //!
