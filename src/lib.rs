@@ -1,3 +1,13 @@
+//! # space-search
+//!
+//! A library providing basic utilities for performing generic depth-first, breadth-first, and heuristic-guided search space exploration algorithms.
+//!
+//! Implement `Searchable` to perform breadth-first or depth-first searching, and implement `ScoredSearchable` to perform heuristically guided search space exploration. Pass them to the `Search` and `ScoredSearch` structs respectively to create iterators that will search the space for a solution.
+//!
+//! Implement `Eq + Hash + Clone` for your search space state type to benefit from prior explored state checking optimization; if youre unable to, then use the `SearchUnhashable` or `ScoredSearchUnhashable` iterators, which do not require these additional bounds, but will likely explore the space much less efficiently.
+//!
+//! When implementing `ScoredSearch`, make sure that higher scoring states are closer to a solution.
+
 use std::{
     collections::{BinaryHeap, HashSet, VecDeque},
     hash::Hash,
@@ -41,9 +51,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let Some(current_state) = self.fringe.pop_back() else {
-                return None;
-            };
+            let current_state = self.fringe.pop_back()?;
 
             if current_state.is_solution() {
                 return Some(current_state);
@@ -92,9 +100,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let Some(current_state) = self.fringe.pop_back() else {
-                return None;
-            };
+            let current_state = self.fringe.pop_back()?;
 
             if current_state.is_solution() {
                 return Some(current_state);
@@ -184,15 +190,13 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let Some(current_state) = self.fringe.pop() else {
-                return None;
-            };
+            let current_state = self.fringe.pop()?.state;
 
-            if current_state.state.is_solution() {
-                return Some(current_state.state);
+            if current_state.is_solution() {
+                return Some(current_state);
             }
 
-            for state in current_state.state.next_states() {
+            for state in current_state.next_states() {
                 if !self.explored.contains(&state) {
                     self.explored.insert(state.clone());
                     let score = state.score();
@@ -231,15 +235,13 @@ impl<S: ScoredSearchable> Iterator for ScoredSearchUnhashable<S> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let Some(current_state) = self.fringe.pop() else {
-                return None;
-            };
+            let current_state = self.fringe.pop()?.state;
 
-            if current_state.state.is_solution() {
-                return Some(current_state.state);
+            if current_state.is_solution() {
+                return Some(current_state);
             }
 
-            for state in current_state.state.next_states() {
+            for state in current_state.next_states() {
                 let score = state.score();
                 self.fringe.push(OrderedSearchable { state, score });
             }
