@@ -171,7 +171,7 @@ where
 /// 
 /// New states are explored in the order of
 /// highest-scoring first, biasing the search exploration in the direction of a solution. Ensure the scores
-/// returned by `score(self)` are increasing with the proximity to a solution.
+/// returned by [`ScoredSearchable::score`] are increasing with the proximity to a solution.
 pub trait ScoredSearchable: Searchable {
     type Score: Ord;
 
