@@ -16,9 +16,9 @@ use std::{vec, hash::Hash};
 struct Pos(i32, i32);
 
 impl Searchable for Pos {
-    type NextMoveIterator = vec::IntoIter<Pos>;
+    type NextStatesIter = vec::IntoIter<Pos>;
 
-    fn next_states(&self) -> Self::NextMoveIterator {
+    fn next_states(&self) -> Self::NextStatesIter {
         let &Pos(x, y) = self;
         vec![
             Pos(x - 1, y),

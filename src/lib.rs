@@ -16,9 +16,9 @@
 //! struct Pos(i32, i32);
 //!
 //! impl Searchable for Pos {
-//!     type NextMoveIterator = vec::IntoIter<Pos>;
+//!     type NextStatesIter = vec::IntoIter<Pos>;
 //!
-//!     fn next_states(&self) -> Self::NextMoveIterator {
+//!     fn next_states(&self) -> Self::NextStatesIter {
 //!         let &Pos(x, y) = self;
 //!         vec![
 //!             Pos(x - 1, y),
@@ -45,10 +45,10 @@ use std::{
 
 /// Basic trait for depth-first and breadth-first search space exploration.
 pub trait Searchable {
-    type NextMoveIterator: Iterator<Item = Self>;
+    type NextStatesIter: Iterator<Item = Self>;
 
     /// Yield all adjacent explorable states reachable from this state.
-    fn next_states(&self) -> Self::NextMoveIterator;
+    fn next_states(&self) -> Self::NextStatesIter;
 
     /// Return `true` if this state is a solution state.
     fn is_solution(&self) -> bool;
