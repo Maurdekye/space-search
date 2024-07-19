@@ -6,7 +6,7 @@
 //!
 //! Implement `Eq + Hash + Clone` for your search space state type to benefit from prior explored state checking optimization; if youre unable to, then use the [`UnhashableSearcher`] or [`ScoredUnhashableSearcher`] iterators, which do not require these additional bounds, but will likely explore the space much less efficiently.
 //!
-//! When implementing [`ScoredSearcher`], make sure that higher scoring states are closer to a solution.
+//! When implementing [`ScoredSearchable`], make sure that higher scoring states are closer to a solution.
 //!
 //! ```
 //! use space_search::*;
