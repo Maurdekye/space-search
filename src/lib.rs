@@ -2,11 +2,11 @@
 //!
 //! A library providing basic utilities for performing generic depth-first, breadth-first, and heuristic-guided search space exploration algorithms.
 //!
-//! Implement `Searchable` to perform breadth-first or depth-first searching, and implement `ScoredSearchable` to perform heuristically guided search space exploration. Pass them to the `Search` and `ScoredSearch` structs respectively to create iterators that will search the space for a solution.
+//! Implement [`Searchable`] to perform breadth-first or depth-first searching, and implement [`ScoredSearchable`] to perform heuristically guided search space exploration. Pass them to the [`Searcher`] and [`ScoredSearcher`] structs respectively to create iterators that will search the space for a solution.
 //!
-//! Implement `Eq + Hash + Clone` for your search space state type to benefit from prior explored state checking optimization; if youre unable to, then use the `SearchUnhashable` or `ScoredSearchUnhashable` iterators, which do not require these additional bounds, but will likely explore the space much less efficiently.
+//! Implement `Eq + Hash + Clone` for your search space state type to benefit from prior explored state checking optimization; if youre unable to, then use the [`ScoredSearcher`] or [`ScoredUnhashableSearcher`] iterators, which do not require these additional bounds, but will likely explore the space much less efficiently.
 //!
-//! When implementing `ScoredSearch`, make sure that higher scoring states are closer to a solution.
+//! When implementing [`ScoredSearcher`], make sure that higher scoring states are closer to a solution.
 //!
 //! ```
 //! use space_search::*;
@@ -34,7 +34,7 @@
 //!     }
 //! }
 //!
-//! let mut searcher = Search::new(Pos(0, 0));
+//! let mut searcher = Searcher::new(Pos(0, 0));
 //! assert_eq!(searcher.next(), Some(Pos(5, 5)));
 //! ```
 
@@ -55,7 +55,7 @@ pub trait Searchable {
 }
 
 /// Optimized breadth-first / depth-first state space exploration iterator.
-pub struct Search<S> {
+pub struct Searcher<S> {
     explored: HashSet<S>,
     fringe: VecDeque<S>,
 
@@ -64,7 +64,7 @@ pub struct Search<S> {
     pub depth_first: bool,
 }
 
-impl<S> Search<S> {
+impl<S> Searcher<S> {
     /// Create a new search iterator from an initial state.
     pub fn new(initial_state: S) -> Self {
         Self {
@@ -83,7 +83,7 @@ impl<S> Search<S> {
     }
 }
 
-impl<S> Iterator for Search<S>
+impl<S> Iterator for Searcher<S>
 where
     S: Searchable + Clone + Hash + Eq,
 {
@@ -113,10 +113,10 @@ where
 
 /// Unoptimized breadth-first / depth-first search space exploration iterator.
 /// 
-/// Use this instead of [`Search`] if implementing `Clone + Eq + Hash` for your [`Searchable`] type
+/// Use this instead of [`Searcher`] if implementing `Clone + Eq + Hash` for your [`Searchable`] type
 /// is infeasible or impractical for whatever reason, or if you're running into memory
 /// limitations from the optimized implementation. 
-pub struct SearchUnhashable<S> {
+pub struct UnhashableSearcher<S> {
     fringe: VecDeque<S>,
 
     /// Toggle depth-first searching on. By default, breadth-first search is used.
@@ -124,7 +124,7 @@ pub struct SearchUnhashable<S> {
     pub depth_first: bool,
 }
 
-impl<S> SearchUnhashable<S> {
+impl<S> UnhashableSearcher<S> {
     /// Create a new unoptimized iterator from an initial state.
     pub fn new(initial_state: S) -> Self {
         Self {
@@ -142,7 +142,7 @@ impl<S> SearchUnhashable<S> {
     }
 }
 
-impl<S> Iterator for SearchUnhashable<S>
+impl<S> Iterator for UnhashableSearcher<S>
 where
     S: Searchable,
 {
@@ -216,12 +216,12 @@ where
 }
 
 /// Optimized heuristic-guided search space exploration iterator.
-pub struct ScoredSearch<S: ScoredSearchable> {
+pub struct ScoredSearcher<S: ScoredSearchable> {
     explored: HashSet<S>,
     fringe: BinaryHeap<OrderedSearchable<S, S::Score>>,
 }
 
-impl<S: ScoredSearchable> ScoredSearch<S> {
+impl<S: ScoredSearchable> ScoredSearcher<S> {
     /// Create a new guided search iterator from an initial state.
     pub fn new(initial_state: S) -> Self {
         let score = initial_state.score();
@@ -243,7 +243,7 @@ impl<S: ScoredSearchable> ScoredSearch<S> {
     }
 }
 
-impl<S: ScoredSearchable> Iterator for ScoredSearch<S>
+impl<S: ScoredSearchable> Iterator for ScoredSearcher<S>
 where
     S: Clone + Hash + Eq,
 {
@@ -270,14 +270,14 @@ where
 
 /// Unoptimized heuristic-guided search space exploration iterator.
 /// 
-/// Use this instead of [`ScoredSearch`] if implementing `Clone + Eq + Hash` for your [`ScoredSearchable`] type
+/// Use this instead of [`ScoredSearcher`] if implementing `Clone + Eq + Hash` for your [`ScoredSearchable`] type
 /// is infeasible or impractical for whatever reason, or if you're running into memory
 /// limitations from the optimized implementation. 
-pub struct ScoredSearchUnhashable<S: ScoredSearchable> {
+pub struct ScoredUnhashableSearcher<S: ScoredSearchable> {
     fringe: BinaryHeap<OrderedSearchable<S, S::Score>>,
 }
 
-impl<S: ScoredSearchable> ScoredSearchUnhashable<S> {
+impl<S: ScoredSearchable> ScoredUnhashableSearcher<S> {
     /// Create a new unoptimizd guided search iterator from an initial state.
     pub fn new(initial_state: S) -> Self {
         let score = initial_state.score();
@@ -298,7 +298,7 @@ impl<S: ScoredSearchable> ScoredSearchUnhashable<S> {
     }
 }
 
-impl<S: ScoredSearchable> Iterator for ScoredSearchUnhashable<S> {
+impl<S: ScoredSearchable> Iterator for ScoredUnhashableSearcher<S> {
     type Item = S;
 
     fn next(&mut self) -> Option<Self::Item> {
