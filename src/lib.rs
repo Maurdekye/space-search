@@ -43,20 +43,29 @@ use std::{
     hash::Hash,
 };
 
+/// Basic trait for depth-first and breadth-first search space exploration.
 pub trait Searchable {
     type NextMoveIterator: Iterator<Item = Self>;
 
+    /// Yield all adjacent explorable states reachable from this state.
     fn next_states(&self) -> Self::NextMoveIterator;
+
+    /// Return `true` if this state is a solution state.
     fn is_solution(&self) -> bool;
 }
 
+/// Optimized breadth-first / depth-first state space exploration iterator.
 pub struct Search<S> {
     explored: HashSet<S>,
     fringe: VecDeque<S>,
+
+    /// Toggle depth-first searching on. By default, breadth-first search is used.
+    /// Enable this flag to perform depth-first search instead.
     pub depth_first: bool,
 }
 
 impl<S> Search<S> {
+    /// Create a new search iterator from an initial state.
     pub fn new(initial_state: S) -> Self {
         Self {
             explored: HashSet::new(),
@@ -65,6 +74,7 @@ impl<S> Search<S> {
         }
     }
 
+    /// Create a new search iterator from a default initial state.
     pub fn new_with_default() -> Self
     where
         S: Default,
@@ -101,12 +111,21 @@ where
     }
 }
 
+/// Unoptimized breadth-first / depth-first search space exploration iterator.
+/// 
+/// Use this instead of [`Search`] if implementing `Clone + Eq + Hash` for your [`Searchable`] type
+/// is infeasible or impractical for whatever reason, or if you're running into memory
+/// limitations from the optimized implementation. 
 pub struct SearchUnhashable<S> {
     fringe: VecDeque<S>,
+
+    /// Toggle depth-first searching on. By default, breadth-first search is used.
+    /// Enable this flag to perform depth-first search instead.
     pub depth_first: bool,
 }
 
 impl<S> SearchUnhashable<S> {
+    /// Create a new unoptimized iterator from an initial state.
     pub fn new(initial_state: S) -> Self {
         Self {
             fringe: VecDeque::from([initial_state]),
@@ -114,6 +133,7 @@ impl<S> SearchUnhashable<S> {
         }
     }
 
+    /// Create a new unoptimized iterator from a default state.
     pub fn new_with_default() -> Self
     where
         S: Default,
@@ -147,9 +167,17 @@ where
     }
 }
 
+/// Trait for search space exploration guided by a heuristic. 
+/// 
+/// New states are explored in the order of
+/// highest-scoring first, biasing the search exploration in the direction of a solution. Ensure the scores
+/// returned by `score(self)` are increasing with the proximity to a solution.
 pub trait ScoredSearchable: Searchable {
     type Score: Ord;
 
+    /// Score function used for heuristic exploration. New states are explored in the order of
+    /// highest-scoring first; ensure the scores
+    /// returned by this function increase with the proximity to a solution.
     fn score(&self) -> Self::Score;
 }
 
@@ -187,12 +215,14 @@ where
     }
 }
 
+/// Optimized heuristic-guided search space exploration iterator.
 pub struct ScoredSearch<S: ScoredSearchable> {
     explored: HashSet<S>,
     fringe: BinaryHeap<OrderedSearchable<S, S::Score>>,
 }
 
 impl<S: ScoredSearchable> ScoredSearch<S> {
+    /// Create a new guided search iterator from an initial state.
     pub fn new(initial_state: S) -> Self {
         let score = initial_state.score();
         Self {
@@ -204,6 +234,7 @@ impl<S: ScoredSearchable> ScoredSearch<S> {
         }
     }
 
+    /// Create a new guided search iterator from a default state.
     pub fn new_with_default() -> Self
     where
         S: Default,
@@ -237,11 +268,17 @@ where
     }
 }
 
+/// Unoptimized heuristic-guided search space exploration iterator.
+/// 
+/// Use this instead of [`ScoredSearch`] if implementing `Clone + Eq + Hash` for your [`ScoredSearchable`] type
+/// is infeasible or impractical for whatever reason, or if you're running into memory
+/// limitations from the optimized implementation. 
 pub struct ScoredSearchUnhashable<S: ScoredSearchable> {
     fringe: BinaryHeap<OrderedSearchable<S, S::Score>>,
 }
 
 impl<S: ScoredSearchable> ScoredSearchUnhashable<S> {
+    /// Create a new unoptimizd guided search iterator from an initial state.
     pub fn new(initial_state: S) -> Self {
         let score = initial_state.score();
         Self {
@@ -252,6 +289,7 @@ impl<S: ScoredSearchable> ScoredSearchUnhashable<S> {
         }
     }
 
+    /// Create a new unoptimizd guided search iterator from a default state.
     pub fn new_with_default() -> Self
     where
         S: Default,

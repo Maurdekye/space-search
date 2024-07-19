@@ -41,3 +41,4 @@ assert_eq!(searcher.next(), Some(Pos(5, 5)));
 ## Todo
 
 * search path memorization
+* A* shortest path algorithm implementation
