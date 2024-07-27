@@ -47,6 +47,8 @@ use std::marker::PhantomData;
 pub mod search;
 
 /// Basic trait for depth-first and breadth-first search space exploration.
+/// 
+/// Implement this basic trait for your state type to perform search-space exploration.
 pub trait Searchable {
     type NextStatesIter: Iterator<Item = Self>;
 
@@ -67,7 +69,7 @@ pub trait ScoredSearchable: Searchable {
 
     /// Score function used for heuristic exploration. New states are explored in the order of
     /// lowest-scoring first; ensure the scores
-    /// returned by this function decreate with the proximity to a solution.
+    /// returned by this function decrease with the proximity to a solution.
     fn score(&self) -> Self::Score;
 }
 
