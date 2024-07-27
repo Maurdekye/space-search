@@ -8,6 +8,10 @@
 //!
 //! When implementing [`ScoredSearchable`], make sure that higher scoring states are closer to a solution.
 //!
+//! ---
+//!
+//! The rationale behind why all these different state space search iterators are unique structs instead of just different configurations of the same underlying struct is because they each require different, unique type constraints. Forcing all the different types of iterators to conform to the same set of type constraints would be counterproductive, and in my opinion, attempting to consolidate all of them into the same struct while maintaining the current type constraint system would be extremely uninutitive to read and maintain. This added redundancy keeps the codebase relatively simple and easy to interpret. Think of it like a toolkit with a bunch of different sizes of the same tool, as opposed to one tool handle with a swappable head.
+//!
 //! ```
 //! use space_search::*;
 //! use std::{vec, hash::Hash};
@@ -34,14 +38,13 @@
 //!     }
 //! }
 //!
-//! let mut searcher = Searcher::new(Pos(0, 0));
+//! let mut searcher: Searcher<search::unguided::no_route::hashable::Manager, _> = Searcher::new(Pos(0, 0));
 //! assert_eq!(searcher.next(), Some(Pos(5, 5)));
 //! ```
 
-use std::{
-    collections::{BinaryHeap, HashSet, VecDeque},
-    hash::Hash,
-};
+use std::marker::PhantomData;
+
+pub mod search;
 
 /// Basic trait for depth-first and breadth-first search space exploration.
 pub trait Searchable {
@@ -54,121 +57,11 @@ pub trait Searchable {
     fn is_solution(&self) -> bool;
 }
 
-/// Optimized breadth-first / depth-first state space exploration iterator.
-pub struct Searcher<S> {
-    explored: HashSet<S>,
-    fringe: VecDeque<S>,
+// intentionally left unimplemented
+// pub struct UnhashableRouteSearcher;
 
-    /// Toggle depth-first searching on. By default, breadth-first search is used.
-    /// Enable this flag to perform depth-first search instead.
-    pub depth_first: bool,
-}
-
-impl<S> Searcher<S> {
-    /// Create a new search iterator from an initial state.
-    pub fn new(initial_state: S) -> Self {
-        Self {
-            explored: HashSet::new(),
-            fringe: VecDeque::from([initial_state]),
-            depth_first: false,
-        }
-    }
-
-    /// Create a new search iterator from a default initial state.
-    pub fn new_with_default() -> Self
-    where
-        S: Default,
-    {
-        Self::new(Default::default())
-    }
-}
-
-impl<S> Iterator for Searcher<S>
-where
-    S: Searchable + Clone + Hash + Eq,
-{
-    type Item = S;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let current_state = self.fringe.pop_back()?;
-
-            if current_state.is_solution() {
-                return Some(current_state);
-            }
-
-            for state in current_state.next_states() {
-                if !self.explored.contains(&state) {
-                    self.explored.insert(state.clone());
-                    if self.depth_first {
-                        self.fringe.push_back(state);
-                    } else {
-                        self.fringe.push_front(state);
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// Unoptimized breadth-first / depth-first search space exploration iterator.
-/// 
-/// Use this instead of [`Searcher`] if implementing `Clone + Eq + Hash` for your [`Searchable`] type
-/// is infeasible or impractical for whatever reason, or if you're running into memory
-/// limitations from the optimized implementation. 
-pub struct UnhashableSearcher<S> {
-    fringe: VecDeque<S>,
-
-    /// Toggle depth-first searching on. By default, breadth-first search is used.
-    /// Enable this flag to perform depth-first search instead.
-    pub depth_first: bool,
-}
-
-impl<S> UnhashableSearcher<S> {
-    /// Create a new unoptimized iterator from an initial state.
-    pub fn new(initial_state: S) -> Self {
-        Self {
-            fringe: VecDeque::from([initial_state]),
-            depth_first: false,
-        }
-    }
-
-    /// Create a new unoptimized iterator from a default state.
-    pub fn new_with_default() -> Self
-    where
-        S: Default,
-    {
-        Self::new(Default::default())
-    }
-}
-
-impl<S> Iterator for UnhashableSearcher<S>
-where
-    S: Searchable,
-{
-    type Item = S;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let current_state = self.fringe.pop_back()?;
-
-            if current_state.is_solution() {
-                return Some(current_state);
-            }
-
-            for state in current_state.next_states() {
-                if self.depth_first {
-                    self.fringe.push_back(state);
-                } else {
-                    self.fringe.push_front(state);
-                }
-            }
-        }
-    }
-}
-
-/// Trait for search space exploration guided by a heuristic. 
-/// 
+/// Trait for search space exploration guided by a heuristic.
+///
 /// New states are explored in the order of
 /// highest-scoring first, biasing the search exploration in the direction of a solution. Ensure the scores
 /// returned by [`ScoredSearchable::score`] are increasing with the proximity to a solution.
@@ -184,6 +77,26 @@ pub trait ScoredSearchable: Searchable {
 struct OrderedSearchable<T, C> {
     state: T,
     score: C,
+}
+
+impl<S> From<S> for OrderedSearchable<S, S::Score>
+where
+    S: ScoredSearchable,
+{
+    fn from(state: S) -> Self {
+        let score = state.score();
+        OrderedSearchable { state, score }
+    }
+}
+
+impl<S> From<StateParentPair<S>> for OrderedSearchable<StateParentPair<S>, S::Score>
+where
+    S: ScoredSearchable,
+{
+    fn from(pair: StateParentPair<S>) -> Self {
+        let score = pair.0.score();
+        OrderedSearchable { state: pair, score }
+    }
 }
 
 impl<T, C> PartialEq for OrderedSearchable<T, C>
@@ -215,103 +128,87 @@ where
     }
 }
 
-/// Optimized heuristic-guided search space exploration iterator.
-pub struct ScoredSearcher<S: ScoredSearchable> {
-    explored: HashSet<S>,
-    fringe: BinaryHeap<OrderedSearchable<S, S::Score>>,
+pub struct NoContext<S>(S);
+
+impl<S> AsRef<S> for NoContext<S> {
+    fn as_ref(&self) -> &S {
+        &self.0
+    }
 }
 
-impl<S: ScoredSearchable> ScoredSearcher<S> {
-    /// Create a new guided search iterator from an initial state.
-    pub fn new(initial_state: S) -> Self {
-        let score = initial_state.score();
+#[derive(Clone)]
+pub struct StateParentPair<S>(S, Option<usize>);
+
+impl<S> AsRef<S> for StateParentPair<S> {
+    fn as_ref(&self) -> &S {
+        &self.0
+    }
+}
+
+pub trait ExplorationManager<S> {
+    type YieldResult;
+    type FringeItem: AsRef<S>;
+    type CurrentStateContext;
+
+    fn initialize(initial_state: S) -> Self;
+    fn pop_state(&mut self) -> Option<Self::FringeItem>;
+    fn prepare_result_from(&self, item: Self::FringeItem) -> Self::YieldResult;
+    fn valid_state(&mut self, item: &Self::FringeItem) -> bool;
+    fn place_state(&mut self, item: Self::FringeItem);
+    fn register_current_state(&mut self, item: &Self::FringeItem) -> Self::CurrentStateContext;
+    fn prepare_state(&self, context: &Self::CurrentStateContext, state: S) -> Self::FringeItem;
+}
+
+/// Optimized breadth-first / depth-first state space exploration iterator.
+pub struct Searcher<M, S> {
+    pub manager: M,
+    _marker: PhantomData<S>,
+}
+
+impl<M, S> Searcher<M, S> {
+    /// Create a new search iterator from an initial state.
+    pub fn new(initial_state: S) -> Self
+    where
+        M: ExplorationManager<S>,
+    {
         Self {
-            explored: HashSet::new(),
-            fringe: BinaryHeap::from([OrderedSearchable {
-                state: initial_state,
-                score,
-            }]),
+            manager: M::initialize(initial_state),
+            _marker: PhantomData,
         }
     }
 
-    /// Create a new guided search iterator from a default state.
+    /// Create a new search iterator from a default initial state.
     pub fn new_with_default() -> Self
     where
         S: Default,
+        M: ExplorationManager<S>,
     {
         Self::new(Default::default())
     }
 }
 
-impl<S: ScoredSearchable> Iterator for ScoredSearcher<S>
+impl<M, S> Iterator for Searcher<M, S>
 where
-    S: Clone + Hash + Eq,
+    M: ExplorationManager<S>,
+    S: Searchable,
 {
-    type Item = S;
+    type Item = M::YieldResult;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let current_state = self.fringe.pop()?.state;
+            let current_state = self.manager.pop_state()?;
 
-            if current_state.is_solution() {
-                return Some(current_state);
+            if current_state.as_ref().is_solution() {
+                return Some(self.manager.prepare_result_from(current_state));
             }
 
-            for state in current_state.next_states() {
-                if !self.explored.contains(&state) {
-                    self.explored.insert(state.clone());
-                    let score = state.score();
-                    self.fringe.push(OrderedSearchable { state, score });
+            let context = self.manager.register_current_state(&current_state);
+
+            for state in current_state.as_ref().next_states() {
+                let new_item = self.manager.prepare_state(&context, state);
+                if self.manager.valid_state(&new_item) {
+                    self.manager.place_state(new_item);
                 }
-            }
-        }
-    }
-}
-
-/// Unoptimized heuristic-guided search space exploration iterator.
-/// 
-/// Use this instead of [`ScoredSearcher`] if implementing `Clone + Eq + Hash` for your [`ScoredSearchable`] type
-/// is infeasible or impractical for whatever reason, or if you're running into memory
-/// limitations from the optimized implementation. 
-pub struct ScoredUnhashableSearcher<S: ScoredSearchable> {
-    fringe: BinaryHeap<OrderedSearchable<S, S::Score>>,
-}
-
-impl<S: ScoredSearchable> ScoredUnhashableSearcher<S> {
-    /// Create a new unoptimizd guided search iterator from an initial state.
-    pub fn new(initial_state: S) -> Self {
-        let score = initial_state.score();
-        Self {
-            fringe: BinaryHeap::from([OrderedSearchable {
-                state: initial_state,
-                score,
-            }]),
-        }
-    }
-
-    /// Create a new unoptimizd guided search iterator from a default state.
-    pub fn new_with_default() -> Self
-    where
-        S: Default,
-    {
-        Self::new(Default::default())
-    }
-}
-
-impl<S: ScoredSearchable> Iterator for ScoredUnhashableSearcher<S> {
-    type Item = S;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let current_state = self.fringe.pop()?.state;
-
-            if current_state.is_solution() {
-                return Some(current_state);
-            }
-
-            for state in current_state.next_states() {
-                let score = state.score();
-                self.fringe.push(OrderedSearchable { state, score });
             }
         }
     }
