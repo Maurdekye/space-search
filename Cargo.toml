@@ -1,8 +1,8 @@
 [package]
 name = "space-search"
-version = "3.0.0"
+version = "4.0.0"
 edition = "2021"
-description = "A library providing basic utilities for performing generic depth-first, breadth-first, and heuristic-guided search space exploration algorithms."
+description = "A library providing basic generic depth-first, breadth-first, and heuristic-guided search space exploration algorithms."
 license = "MIT"
 
 [dependencies]

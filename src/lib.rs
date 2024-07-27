@@ -1,16 +1,16 @@
 //! # space-search
 //!
-//! A library providing basic utilities for performing generic depth-first, breadth-first, and heuristic-guided search space exploration algorithms.
+//! A library providing basic generic depth-first, breadth-first, and heuristic-guided search space exploration algorithms.
 //!
-//! Implement [`Searchable`] to perform breadth-first or depth-first searching, and implement [`ScoredSearchable`] to perform heuristically guided search space exploration. Pass them to the [`Searcher`] and [`ScoredSearcher`] structs respectively to create iterators that will search the space for a solution.
+//! Implement [`Searchable`] to perform breadth-first or depth-first searching, and implement [`ScoredSearchable`] to perform heuristically guided search space exploration. Pass them to [`Searcher`] to create an iterator that will search for a solution.
+//! 
+//! [`Searcher`] requires that you specify a `Manager` type that determines the strategy, return result, and optimization of the search algorithm. Choose one of the searchers defined in the hierarchy of the [`search`] module to fit your individual needs. 
 //!
-//! Implement `Eq + Hash + Clone` for your search space state type to benefit from prior explored state checking optimization; if youre unable to, then use the [`UnhashableSearcher`] or [`ScoredUnhashableSearcher`] iterators, which do not require these additional bounds, but will likely explore the space much less efficiently.
-//!
-//! When implementing [`ScoredSearchable`], make sure that higher scoring states are closer to a solution.
-//!
-//! ---
-//!
-//! The rationale behind why all these different state space search iterators are unique structs instead of just different configurations of the same underlying struct is because they each require different, unique type constraints. Forcing all the different types of iterators to conform to the same set of type constraints would be counterproductive, and in my opinion, attempting to consolidate all of them into the same struct while maintaining the current type constraint system would be extremely uninutitive to read and maintain. This added redundancy keeps the codebase relatively simple and easy to interpret. Think of it like a toolkit with a bunch of different sizes of the same tool, as opposed to one tool handle with a swappable head.
+//! * Implement [`ScoredSearchable`] to utilize the `guided` search strategy based managers, which will prioritize searching states with a lower associated score first. If implementing [`ScoredSearchable`] is too complex or unnecessary for your use case, then you may use the `unguided` search managers, which explore the space naively in a depth-first or breadth-first manner, toggleable by a flag on the manager itself.
+//! * Implement [`Eq`]` + `[`Hash`]` + `[`Clone`] for your [`Searchable`] type to benefit from prior explored state checking optimization using a `hashable` manager; if youre unable to, then use an `unhashable` manager, which does not require these additional bounds, but will likely explore the space much less efficiently.
+//! * Use a `route` based manager to yield results consisting of the sequence of steps taken from the starting state to the ending state. Use a `no_route` manager to just yield the solution state alone.
+//! 
+//! When implementing [`ScoredSearchable`], make sure that lower scoring states are closer to a solution.
 //!
 //! ```
 //! use space_search::*;
@@ -38,7 +38,7 @@
 //!     }
 //! }
 //!
-//! let mut searcher: Searcher<search::unguided::no_route::hashable::Manager, _> = Searcher::new(Pos(0, 0));
+//! let mut searcher: Searcher<search::unguided::no_route::hashable::Manager<_>, _> = Searcher::new(Pos(0, 0));
 //! assert_eq!(searcher.next(), Some(Pos(5, 5)));
 //! ```
 
@@ -57,20 +57,17 @@ pub trait Searchable {
     fn is_solution(&self) -> bool;
 }
 
-// intentionally left unimplemented
-// pub struct UnhashableRouteSearcher;
-
 /// Trait for search space exploration guided by a heuristic.
 ///
 /// New states are explored in the order of
-/// highest-scoring first, biasing the search exploration in the direction of a solution. Ensure the scores
-/// returned by [`ScoredSearchable::score`] are increasing with the proximity to a solution.
+/// lowest-scoring first, biasing the search exploration in the direction of a solution. Ensure the scores
+/// returned by [`ScoredSearchable::score`] are decreasing with the proximity to a solution.
 pub trait ScoredSearchable: Searchable {
     type Score: Ord;
 
     /// Score function used for heuristic exploration. New states are explored in the order of
-    /// highest-scoring first; ensure the scores
-    /// returned by this function increase with the proximity to a solution.
+    /// lowest-scoring first; ensure the scores
+    /// returned by this function decreate with the proximity to a solution.
     fn score(&self) -> Self::Score;
 }
 
@@ -115,7 +112,7 @@ where
     C: PartialOrd,
 {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.score.partial_cmp(&other.score)
+        other.score.partial_cmp(&self.score)
     }
 }
 
@@ -124,7 +121,7 @@ where
     C: Ord,
 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.score.cmp(&other.score)
+        other.score.cmp(&self.score)
     }
 }
 
@@ -142,6 +139,60 @@ pub struct StateParentPair<S>(S, Option<usize>);
 impl<S> AsRef<S> for StateParentPair<S> {
     fn as_ref(&self) -> &S {
         &self.0
+    }
+}
+
+/// Newtype wrapper for f32 that implements Ord using [`f32::total_cmp`].
+///
+/// You may use this type as the score type when implementing [`ScoredSearchable`],
+/// as it requires the trait [`Ord`] to be implemented.
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
+pub struct OrdF32(f32);
+
+impl Eq for OrdF32 {}
+
+impl Ord for OrdF32 {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.total_cmp(&other.0)
+    }
+}
+
+impl From<OrdF32> for f32 {
+    fn from(OrdF32(value): OrdF32) -> Self {
+        value
+    }
+}
+
+impl From<f32> for OrdF32 {
+    fn from(value: f32) -> Self {
+        OrdF32(value)
+    }
+}
+
+/// Newtype wrapper for f64 that implements Ord using [`f64::total_cmp`].
+///
+/// You may use this type as the score type when implementing [`ScoredSearchable`],
+/// as it requires the trait [`Ord`] to be implemented.
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
+pub struct OrdF64(f64);
+
+impl Eq for OrdF64 {}
+
+impl Ord for OrdF64 {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.total_cmp(&other.0)
+    }
+}
+
+impl From<OrdF64> for f64 {
+    fn from(OrdF64(value): OrdF64) -> Self {
+        value
+    }
+}
+
+impl From<f64> for OrdF64 {
+    fn from(value: f64) -> Self {
+        OrdF64(value)
     }
 }
 

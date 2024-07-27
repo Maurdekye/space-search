@@ -47,9 +47,9 @@ where
     fn valid_state(&mut self, NoContext(state): &Self::FringeItem) -> bool {
         if !self.explored.contains(state) {
             self.explored.insert(state.clone());
-            false
-        } else {
             true
+        } else {
+            false
         }
     }
 
@@ -64,4 +64,31 @@ where
     fn prepare_state(&self, _context: &Self::CurrentStateContext, state: S) -> Self::FringeItem {
         NoContext(state)
     }
+}
+
+#[test]
+fn test() {
+    use crate::*;
+    use std::{hash::Hash, vec};
+
+    #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+    struct Pos(i32, i32);
+
+    impl Searchable for Pos {
+        type NextStatesIter = vec::IntoIter<Pos>;
+
+        fn next_states(&self) -> Self::NextStatesIter {
+            let &Pos(x, y) = self;
+            vec![Pos(x - 1, y), Pos(x, y - 1), Pos(x + 1, y), Pos(x, y + 1)].into_iter()
+        }
+
+        fn is_solution(&self) -> bool {
+            let &Pos(x, y) = self;
+            x == 5 && y == 5
+        }
+    }
+
+    let mut searcher: Searcher<Manager<_>, _> =
+        Searcher::new(Pos(0, 0));
+    assert_eq!(searcher.next(), Some(Pos(5, 5)));
 }
