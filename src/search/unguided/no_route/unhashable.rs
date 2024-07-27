@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use crate::{ExplorationManager, NoContext, Searchable};
 
+/// unguided, solution-only yielding, unoptimized culling search manager.
 pub struct Manager<S> {
     fringe: VecDeque<S>,
 

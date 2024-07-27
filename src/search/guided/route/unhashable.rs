@@ -2,6 +2,7 @@ use std::collections::{BinaryHeap, VecDeque};
 
 use crate::{ExplorationManager, OrderedSearchable, ScoredSearchable, StateParentPair};
 
+/// guided, solution-route yielding, unoptimized search manager.
 pub struct Manager<S>
 where
     S: ScoredSearchable,

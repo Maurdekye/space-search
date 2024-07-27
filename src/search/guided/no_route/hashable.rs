@@ -5,6 +5,7 @@ use std::{
 
 use crate::{ExplorationManager, NoContext, OrderedSearchable, ScoredSearchable};
 
+/// guided, solution-only yielding, prior state exploration culling search manager.
 pub struct Manager<S>
 where
     S: ScoredSearchable,

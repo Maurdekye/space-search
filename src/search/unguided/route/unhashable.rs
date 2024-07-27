@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use crate::{ExplorationManager, Searchable, StateParentPair};
 
+/// unguided, solution-route yielding, unoptimized search manager.
 pub struct Manager<S> {
     fringe: VecDeque<StateParentPair<S>>,
     parents: Vec<StateParentPair<S>>,

@@ -71,6 +71,9 @@ pub trait ScoredSearchable: Searchable {
     fn score(&self) -> Self::Score;
 }
 
+/// Internal. 
+/// 
+/// Used to represent states paired with their scores in guided exploration managers.
 struct OrderedSearchable<T, C> {
     state: T,
     score: C,
@@ -125,6 +128,9 @@ where
     }
 }
 
+/// Internal.
+/// 
+/// Used to represent states with no additional context in solution-only yielding managers.
 pub struct NoContext<S>(S);
 
 impl<S> AsRef<S> for NoContext<S> {
@@ -133,6 +139,9 @@ impl<S> AsRef<S> for NoContext<S> {
     }
 }
 
+/// Internal.
+/// 
+/// Used to represent states with the added context of their parent state solution-route yielding managers.
 #[derive(Clone)]
 pub struct StateParentPair<S>(S, Option<usize>);
 
@@ -142,7 +151,7 @@ impl<S> AsRef<S> for StateParentPair<S> {
     }
 }
 
-/// Newtype wrapper for f32 that implements Ord using [`f32::total_cmp`].
+/// Newtype wrapper for [`f32`] that implements [`Ord`] using [`f32::total_cmp`].
 ///
 /// You may use this type as the score type when implementing [`ScoredSearchable`],
 /// as it requires the trait [`Ord`] to be implemented.
@@ -169,7 +178,7 @@ impl From<f32> for OrdF32 {
     }
 }
 
-/// Newtype wrapper for f64 that implements Ord using [`f64::total_cmp`].
+/// Newtype wrapper for [`f64`] that implements [`Ord`] using [`f64::total_cmp`].
 ///
 /// You may use this type as the score type when implementing [`ScoredSearchable`],
 /// as it requires the trait [`Ord`] to be implemented.
@@ -196,6 +205,9 @@ impl From<f64> for OrdF64 {
     }
 }
 
+/// Internal.
+/// 
+/// Trait abstracting all exploration managers' common functionality.
 pub trait ExplorationManager<S> {
     type YieldResult;
     type FringeItem: AsRef<S>;
@@ -210,7 +222,9 @@ pub trait ExplorationManager<S> {
     fn prepare_state(&self, context: &Self::CurrentStateContext, state: S) -> Self::FringeItem;
 }
 
-/// Optimized breadth-first / depth-first state space exploration iterator.
+/// State space exploration iterator.
+/// 
+/// Create an instance of this to explore a search space.
 pub struct Searcher<M, S> {
     pub manager: M,
     _marker: PhantomData<S>,

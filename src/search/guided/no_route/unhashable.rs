@@ -2,6 +2,7 @@ use std::collections::BinaryHeap;
 
 use crate::{ExplorationManager, NoContext, OrderedSearchable, ScoredSearchable};
 
+/// guided, solution-only yielding, unoptimized search space manager.
 pub struct Manager<S>
 where
     S: ScoredSearchable,

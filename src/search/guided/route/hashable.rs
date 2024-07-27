@@ -5,6 +5,7 @@ use std::{
 
 use crate::{ExplorationManager, OrderedSearchable, ScoredSearchable, StateParentPair};
 
+/// guided, solution-route yielding, prior state exploration culling search manager.
 pub struct Manager<S>
 where
     S: ScoredSearchable,

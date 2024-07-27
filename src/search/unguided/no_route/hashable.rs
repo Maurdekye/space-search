@@ -5,6 +5,7 @@ use std::{
 
 use crate::{ExplorationManager, NoContext, Searchable};
 
+/// unguided, solution-only yielding, prior state exploration culling search manager.
 pub struct Manager<S> {
     explored: HashSet<S>,
     fringe: VecDeque<S>,
