@@ -65,6 +65,8 @@ pub trait Searchable {
 /// lowest-scoring first, biasing the search exploration in the direction of a solution. Ensure the scores
 /// returned by [`ScoredSearchable::score`] are decreasing with the proximity to a solution.
 pub trait ScoredSearchable: Searchable {
+    /// Type used to represent a state's score. 
+    /// Common types can be [`i32`], [`usize`], [`OrdF32`], [`OrdF64`], or your own type implementing [`Ord`].
     type Score: Ord;
 
     /// Score function used for heuristic exploration. New states are explored in the order of
@@ -158,7 +160,7 @@ impl<S> AsRef<S> for StateParentPair<S> {
 /// You may use this type as the score type when implementing [`ScoredSearchable`],
 /// as it requires the trait [`Ord`] to be implemented.
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
-pub struct OrdF32(f32);
+pub struct OrdF32(pub f32);
 
 impl Eq for OrdF32 {}
 
@@ -185,7 +187,7 @@ impl From<f32> for OrdF32 {
 /// You may use this type as the score type when implementing [`ScoredSearchable`],
 /// as it requires the trait [`Ord`] to be implemented.
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
-pub struct OrdF64(f64);
+pub struct OrdF64(pub f64);
 
 impl Eq for OrdF64 {}
 
