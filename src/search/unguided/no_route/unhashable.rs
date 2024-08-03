@@ -1,19 +1,36 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, marker::PhantomData};
 
-use crate::{ExplorationManager, NoContext, Searchable};
+use crate::{ExplorationManager, NoContext};
 
 /// unguided, solution-only yielding, unoptimized culling search manager.
-pub struct Manager<S> {
+pub struct Manager<S, N, NI, IG> {
     fringe: VecDeque<S>,
 
     /// Toggle depth-first searching on. By default, breadth-first search is used.
     /// Enable this flag to perform depth-first search instead.
     pub depth_first: bool,
+
+    next_states: N,
+    is_goal: IG,
+    _marker_ni: PhantomData<NI>,
 }
 
-impl<S> ExplorationManager<S> for Manager<S>
+pub struct Options<State, NextStates, NextStatesIter, IsGoal>
 where
-    S: Searchable,
+    NextStates: Fn(&State) -> NextStatesIter,
+    NextStatesIter: Iterator<Item = State>,
+    IsGoal: Fn(&State) -> bool,
+{
+    start: State,
+    next_states: NextStates,
+    is_goal: IsGoal,
+}
+
+impl<S, N, NI, IG> ExplorationManager<S> for Manager<S, N, NI, IG>
+where
+    N: Fn(&S) -> NI,
+    NI: Iterator<Item = S>,
+    IG: Fn(&S) -> bool,
 {
     type YieldResult = S;
 
@@ -23,10 +40,21 @@ where
 
     type NextStatesIterItem = S;
 
-    fn initialize(initial_state: S) -> Self {
+    type InitializeOptions = Options<S, N, NI, IG>;
+
+    fn initialize(
+        Options {
+            start,
+            next_states,
+            is_goal,
+        }: Self::InitializeOptions,
+    ) -> Self {
         Self {
-            fringe: VecDeque::from([initial_state]),
+            fringe: VecDeque::from([start]),
             depth_first: false,
+            next_states,
+            is_goal,
+            _marker_ni: PhantomData,
         }
     }
 
@@ -59,9 +87,14 @@ where
     }
 
     fn next_states_iter(
+        &self,
         current_state: &S,
     ) -> impl Iterator<Item = Self::NextStatesIterItem> {
-        current_state.next_states()
+        (self.next_states)(current_state)
+    }
+
+    fn is_goal(&self, state: &S) -> bool {
+        self.is_goal(state)
     }
 }
 
@@ -69,23 +102,35 @@ where
 fn test() {
     use crate::*;
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     struct Pos(i32, i32);
 
-    impl Searchable for Pos {
-        fn next_states(&self) -> impl Iterator<Item = Self> {
-            let &Pos(x, y) = self;
-            [Pos(x - 1, y), Pos(x, y - 1), Pos(x + 1, y), Pos(x, y + 1)].into_iter()
-        }
-    }
+    // impl Searchable for Pos {
+    //     fn next_states(&self) -> impl Iterator<Item = Self> {
+    //         let &Pos(x, y) = self;
+    //         [Pos(x - 1, y), Pos(x, y - 1), Pos(x + 1, y), Pos(x, y + 1)].into_iter()
+    //     }
+    // }
 
-    impl SolutionIdentifiable for Pos {
-        fn is_solution(&self) -> bool {
-            let &Pos(x, y) = self;
-            x == 5 && y == 5
-        }
-    }
+    // impl SolutionIdentifiable for Pos {
+    //     fn is_solution(&self) -> bool {
+    //         let &Pos(x, y) = self;
+    //         x == 5 && y == 5
+    //     }
+    // }
 
-    let mut searcher: Searcher<Manager<_>, _> = Searcher::new(Pos(0, 0));
+    let mut searcher: Searcher<Manager<_, _, _, _>, _> = Searcher::new(Options {
+        start: Pos(0, 0),
+        next_states: |Pos(x, y)| {
+            [
+                Pos(x + 1, *y),
+                Pos(x - 1, *y),
+                Pos(*x, y + 1),
+                Pos(*x, y - 1),
+            ]
+            .into_iter()
+        },
+        is_goal: |pos| pos == &Pos(5, 5),
+    });
     assert_eq!(searcher.next(), Some(Pos(5, 5)));
 }

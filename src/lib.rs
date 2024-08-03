@@ -249,8 +249,9 @@ pub trait ExplorationManager<S> {
     type FringeItem: AsRef<S>;
     type CurrentStateContext;
     type NextStatesIterItem;
+    type InitializeOptions;
 
-    fn initialize(initial_state: S) -> Self;
+    fn initialize(options: Self::InitializeOptions) -> Self;
     fn pop_state(&mut self) -> Option<Self::FringeItem>;
     fn prepare_result_from(&self, item: Self::FringeItem) -> Self::YieldResult;
     fn valid_state(&mut self, item: &Self::FringeItem) -> bool;
@@ -261,7 +262,8 @@ pub trait ExplorationManager<S> {
         context: &Self::CurrentStateContext,
         state: Self::NextStatesIterItem,
     ) -> Self::FringeItem;
-    fn next_states_iter(current_state: &S) -> impl Iterator<Item = Self::NextStatesIterItem>;
+    fn next_states_iter(&self, current_state: &S) -> impl Iterator<Item = Self::NextStatesIterItem>;
+    fn is_goal(&self, state: &S) -> bool;
 }
 
 /// State space exploration iterator.
@@ -274,30 +276,20 @@ pub struct Searcher<M, S> {
 
 impl<M, S> Searcher<M, S> {
     /// Create a new search iterator from an initial state.
-    pub fn new(initial_state: S) -> Self
+    pub fn new(options: M::InitializeOptions) -> Self
     where
         M: ExplorationManager<S>,
     {
         Self {
-            manager: M::initialize(initial_state),
+            manager: M::initialize(options),
             _marker: PhantomData,
         }
-    }
-
-    /// Create a new search iterator from a default initial state.
-    pub fn new_with_default() -> Self
-    where
-        S: Default,
-        M: ExplorationManager<S>,
-    {
-        Self::new(Default::default())
     }
 }
 
 impl<M, S> Iterator for Searcher<M, S>
 where
     M: ExplorationManager<S>,
-    S: SolutionIdentifiable,
 {
     type Item = M::YieldResult;
 
@@ -305,13 +297,13 @@ where
         loop {
             let current_state = self.manager.pop_state()?;
 
-            if current_state.as_ref().is_solution() {
+            if self.manager.is_goal(&current_state.as_ref()) {
                 return Some(self.manager.prepare_result_from(current_state));
             }
 
             let context = self.manager.register_current_state(&current_state);
 
-            for item in M::next_states_iter(current_state.as_ref()) {
+            for item in self.manager.next_states_iter(current_state.as_ref()) {
                 let new_item = self.manager.prepare_state(&context, item);
                 if self.manager.valid_state(&new_item) {
                     self.manager.place_state(new_item);
