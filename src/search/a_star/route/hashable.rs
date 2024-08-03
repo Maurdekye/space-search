@@ -98,7 +98,6 @@ where
 #[test]
 fn test() {
     use crate::*;
-    use std::vec;
 
     #[derive(Clone, Debug, PartialEq, Eq, Hash)]
     struct Pos(i32, i32);
@@ -106,7 +105,7 @@ fn test() {
     impl CostSearchable for Pos {
         fn next_states_with_costs(&self) -> impl Iterator<Item = (Self, Self::Score)> {
             let &Pos(x, y) = self;
-            vec![Pos(x - 1, y), Pos(x, y - 1), Pos(x + 1, y), Pos(x, y + 1)]
+            [Pos(x - 1, y), Pos(x, y - 1), Pos(x + 1, y), Pos(x, y + 1)]
                 .into_iter()
                 .map(|s| (s, 1))
         }

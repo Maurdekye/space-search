@@ -68,9 +68,7 @@ where
         NoContext(state)
     }
 
-    fn next_states_iter(
-        current_state: &S,
-    ) -> impl Iterator<Item = Self::NextStatesIterItem> {
+    fn next_states_iter(current_state: &S) -> impl Iterator<Item = Self::NextStatesIterItem> {
         current_state.next_states()
     }
 }
@@ -78,7 +76,7 @@ where
 #[test]
 fn test() {
     use crate::*;
-    use std::{hash::Hash, vec};
+    use std::hash::Hash;
 
     #[derive(Clone, Debug, PartialEq, Eq, Hash)]
     struct Pos(i32, i32);
@@ -86,7 +84,7 @@ fn test() {
     impl Searchable for Pos {
         fn next_states(&self) -> impl Iterator<Item = Self> {
             let &Pos(x, y) = self;
-            vec![Pos(x - 1, y), Pos(x, y - 1), Pos(x + 1, y), Pos(x, y + 1)].into_iter()
+            [Pos(x - 1, y), Pos(x, y - 1), Pos(x + 1, y), Pos(x, y + 1)].into_iter()
         }
     }
 

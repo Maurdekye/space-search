@@ -72,7 +72,6 @@ where
 #[test]
 fn test() {
     use crate::*;
-    use std::vec;
 
     #[derive(Clone, Debug, PartialEq, Eq, Hash)]
     struct Pos(i32, i32);
@@ -80,7 +79,7 @@ fn test() {
     impl Searchable for Pos {
         fn next_states(&self) -> impl Iterator<Item = Self> {
             let &Pos(x, y) = self;
-            vec![Pos(x - 1, y), Pos(x, y - 1), Pos(x + 1, y), Pos(x, y + 1)].into_iter()
+            [Pos(x - 1, y), Pos(x, y - 1), Pos(x + 1, y), Pos(x, y + 1)].into_iter()
         }
     }
 

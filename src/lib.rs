@@ -8,7 +8,7 @@
 //!
 //! * Implement [`Scoreable`] to utilize the `guided` search strategy based managers, which will prioritize searching states with a lower associated score first. Additionally, implement [`CostSearchable`] to make use of the A* based search managers in the `a_star` module. If implementing [`Scoreable`] is too complex or unnecessary for your use case, then you may use the `unguided` search managers, which explore the space naively in a depth-first or breadth-first manner, toggleable by a flag on the manager itself.
 //! * Use a `route` based manager to yield results consisting of the sequence of steps taken from the starting state to the ending state. Use a `no_route` manager to just yield the solution state alone. Route based managers require that your state type implement [`Clone`].
-//! * Implement [`Eq`]` + `[`std::hash::Hash`]` + `[`Clone`] for your [`Searchable`] type to benefit from prior explored state checking optimization using a `hashable` manager; if youre unable to, then use an `unhashable` manager, which does not require these additional bounds, but will likely explore the space much less efficiently unless cyclic traversal is not an inherent property of your search space.
+//! * Implement [`Eq`] + [`std::hash::Hash`] + [`Clone`] for your [`Searchable`] type to benefit from prior explored state checking optimization using a `hashable` manager; if youre unable to, then use an `unhashable` manager, which does not require these additional bounds, but will likely explore the space much less efficiently unless cyclic traversal is not an inherent property of your search space.
 //!
 //! When implementing [`Scoreable`], make sure that lower scoring states are closer to a solution.
 //!
@@ -22,7 +22,7 @@
 //! impl Searchable for Pos {
 //!     fn next_states(&self) -> impl Iterator<Item = Self> {
 //!         let &Pos(x, y) = self;
-//!         vec![
+//!         [
 //!             Pos(x - 1, y),
 //!             Pos(x, y - 1),
 //!             Pos(x + 1, y),
@@ -42,13 +42,7 @@
 //! assert_eq!(searcher.next(), Some(Pos(5, 5)));
 //! ```
 
-use std::{
-    collections::VecDeque,
-    marker::PhantomData,
-    ops::{Add, Mul},
-};
-
-use num::{One, Zero};
+use std::{collections::VecDeque, marker::PhantomData};
 
 pub mod search;
 
@@ -77,7 +71,7 @@ pub trait SolutionIdentifiable {
 /// returned by [`Scoreable::score`] are decreasing with the proximity to a solution.
 pub trait Scoreable {
     /// Type used to represent a state's score.
-    /// Common types can be [`i32`], [`usize`], [`OrdF32`], [`OrdF64`], or your own type implementing [`Ord`].
+    /// Common types can be [`i32`], [`usize`], an ordered float type, or your own type implementing [`Ord`].
     type Score: Ord;
 
     /// Score function used for heuristic exploration. New states are explored in the order of
@@ -244,124 +238,6 @@ impl<S, C> From<StateParentCumulativeCost<S, C>> for StateParent<S> {
         StateParentCumulativeCost { state, parent, .. }: StateParentCumulativeCost<S, C>,
     ) -> Self {
         StateParent { state, parent }
-    }
-}
-
-/// Newtype wrapper for [`f32`] that implements [`Ord`] using [`f32::total_cmp`].
-///
-/// You may use this type as the score type when implementing [`ScoredSearchable`],
-/// as it requires the trait [`Ord`] to be implemented.
-#[derive(Clone, Copy, PartialEq, PartialOrd)]
-pub struct OrdF32(pub f32);
-
-impl Eq for OrdF32 {}
-
-impl Ord for OrdF32 {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.total_cmp(&other.0)
-    }
-}
-
-impl From<OrdF32> for f32 {
-    fn from(OrdF32(value): OrdF32) -> Self {
-        value
-    }
-}
-
-impl From<f32> for OrdF32 {
-    fn from(value: f32) -> Self {
-        OrdF32(value)
-    }
-}
-
-impl Add for OrdF32 {
-    type Output = OrdF32;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        OrdF32(self.0 + rhs.0)
-    }
-}
-
-impl Mul for OrdF32 {
-    type Output = OrdF32;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        OrdF32(self.0 * rhs.0)
-    }
-}
-
-impl One for OrdF32 {
-    fn one() -> Self {
-        f32::one().into()
-    }
-}
-
-impl Zero for OrdF32 {
-    fn zero() -> Self {
-        f32::zero().into()
-    }
-
-    fn is_zero(&self) -> bool {
-        f32::is_zero(&self.0)
-    }
-}
-
-/// Newtype wrapper for [`f64`] that implements [`Ord`] using [`f64::total_cmp`].
-///
-/// You may use this type as the score type when implementing [`ScoredSearchable`],
-/// as it requires the trait [`Ord`] to be implemented.
-#[derive(Clone, Copy, PartialEq, PartialOrd)]
-pub struct OrdF64(pub f64);
-
-impl Eq for OrdF64 {}
-
-impl Ord for OrdF64 {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.total_cmp(&other.0)
-    }
-}
-
-impl From<OrdF64> for f64 {
-    fn from(OrdF64(value): OrdF64) -> Self {
-        value
-    }
-}
-
-impl From<f64> for OrdF64 {
-    fn from(value: f64) -> Self {
-        OrdF64(value)
-    }
-}
-
-impl Add for OrdF64 {
-    type Output = OrdF64;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        OrdF64(self.0 + rhs.0)
-    }
-}
-
-impl Mul for OrdF64 {
-    type Output = OrdF64;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        OrdF64(self.0 * rhs.0)
-    }
-}
-
-impl One for OrdF64 {
-    fn one() -> Self {
-        f64::one().into()
-    }
-}
-
-impl Zero for OrdF64 {
-    fn zero() -> Self {
-        f64::zero().into()
-    }
-
-    fn is_zero(&self) -> bool {
-        f64::is_zero(&self.0)
     }
 }
 
