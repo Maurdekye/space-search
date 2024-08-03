@@ -3,12 +3,12 @@ use std::{
     hash::Hash,
 };
 
-use crate::{ExplorationManager, NoContext, OrderedSearchable, ScoredSearchable};
+use crate::{ExplorationManager, NoContext, OrderedSearchable, Scoreable, Searchable};
 
 /// guided, solution-only yielding, prior state exploration culling search manager.
 pub struct Manager<S>
 where
-    S: ScoredSearchable,
+    S: Scoreable,
 {
     explored: HashSet<S>,
     fringe: BinaryHeap<OrderedSearchable<S, S::Score>>,
@@ -16,13 +16,15 @@ where
 
 impl<S> ExplorationManager<S> for Manager<S>
 where
-    S: ScoredSearchable + Clone + Hash + Eq,
+    S: Searchable + Scoreable + Clone + Hash + Eq,
 {
     type YieldResult = S;
 
     type FringeItem = NoContext<S>;
 
     type CurrentStateContext = ();
+
+    type NextStatesIterItem = S;
 
     fn initialize(initial_state: S) -> Self {
         Self {
@@ -59,6 +61,12 @@ where
     fn prepare_state(&self, _context: &Self::CurrentStateContext, state: S) -> Self::FringeItem {
         NoContext(state)
     }
+
+    fn next_states_iter(
+        current_state: &S,
+    ) -> impl Iterator<Item = Self::NextStatesIterItem> {
+        current_state.next_states()
+    }
 }
 
 #[test]
@@ -70,20 +78,20 @@ fn test() {
     struct Pos(i32, i32);
 
     impl Searchable for Pos {
-        type NextStatesIter = vec::IntoIter<Pos>;
-
-        fn next_states(&self) -> Self::NextStatesIter {
+        fn next_states(&self) -> impl Iterator<Item = Self> {
             let &Pos(x, y) = self;
             vec![Pos(x - 1, y), Pos(x, y - 1), Pos(x + 1, y), Pos(x, y + 1)].into_iter()
         }
+    }
 
+    impl SolutionIdentifiable for Pos {
         fn is_solution(&self) -> bool {
             let &Pos(x, y) = self;
             x == 5 && y == 5
         }
     }
 
-    impl ScoredSearchable for Pos {
+    impl Scoreable for Pos {
         type Score = i32;
 
         fn score(&self) -> Self::Score {
@@ -92,7 +100,6 @@ fn test() {
         }
     }
 
-    let mut searcher: Searcher<Manager<_>, _> =
-        Searcher::new(Pos(0, 0));
+    let mut searcher: Searcher<Manager<_>, _> = Searcher::new(Pos(0, 0));
     assert_eq!(searcher.next(), Some(Pos(5, 5)));
 }

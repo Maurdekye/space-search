@@ -1,11 +1,11 @@
 use std::collections::VecDeque;
 
-use crate::{ExplorationManager, Searchable, StateParentPair};
+use crate::{prepare_result_from_state_parent_map, ExplorationManager, Searchable, StateParent};
 
 /// unguided, solution-route yielding, unoptimized search manager.
 pub struct Manager<S> {
-    fringe: VecDeque<StateParentPair<S>>,
-    parents: Vec<StateParentPair<S>>,
+    fringe: VecDeque<StateParent<S>>,
+    parents: Vec<StateParent<S>>,
     pub depth_first: bool,
 }
 
@@ -15,12 +15,17 @@ where
 {
     type YieldResult = Vec<S>;
 
-    type FringeItem = StateParentPair<S>;
+    type FringeItem = StateParent<S>;
 
     type CurrentStateContext = usize;
 
+    type NextStatesIterItem = S;
+
     fn initialize(initial_state: S) -> Self {
-        let initial_pair = StateParentPair(initial_state, None);
+        let initial_pair = StateParent {
+            state: initial_state,
+            parent: None,
+        };
         Self {
             fringe: VecDeque::from([initial_pair.clone()]),
             parents: vec![initial_pair],
@@ -35,23 +40,8 @@ where
         }
     }
 
-    fn prepare_result_from(
-        &self,
-        StateParentPair(mut state, mut maybe_parent_index): Self::FringeItem,
-    ) -> Self::YieldResult {
-        let mut result = VecDeque::new();
-        while let Some(parent_index) = maybe_parent_index {
-            result.push_front(state);
-            let StateParentPair(new_state, new_parent_index) = self
-                .parents
-                .get(parent_index)
-                .expect("Parent state will always exist if parent index exists")
-                .clone();
-            state = new_state;
-            maybe_parent_index = new_parent_index;
-        }
-        result.push_front(state);
-        result.into()
+    fn prepare_result_from(&self, item: Self::FringeItem) -> Self::YieldResult {
+        prepare_result_from_state_parent_map(&self.parents, item)
     }
 
     fn valid_state(&mut self, _item: &Self::FringeItem) -> bool {
@@ -68,7 +58,14 @@ where
     }
 
     fn prepare_state(&self, context: &Self::CurrentStateContext, state: S) -> Self::FringeItem {
-        StateParentPair(state, Some(*context))
+        StateParent {
+            state,
+            parent: Some(*context),
+        }
+    }
+
+    fn next_states_iter(current_state: &S) -> impl Iterator<Item = Self::NextStatesIterItem> {
+        current_state.next_states()
     }
 }
 
@@ -81,21 +78,20 @@ fn test() {
     struct Pos(i32, i32);
 
     impl Searchable for Pos {
-        type NextStatesIter = vec::IntoIter<Pos>;
-
-        fn next_states(&self) -> Self::NextStatesIter {
+        fn next_states(&self) -> impl Iterator<Item = Self> {
             let &Pos(x, y) = self;
             vec![Pos(x - 1, y), Pos(x, y - 1), Pos(x + 1, y), Pos(x, y + 1)].into_iter()
         }
+    }
 
+    impl SolutionIdentifiable for Pos {
         fn is_solution(&self) -> bool {
             let &Pos(x, y) = self;
             x == 5 && y == 5
         }
     }
 
-    let mut searcher: Searcher<Manager<_>, _> =
-        Searcher::new(Pos(0, 0));
+    let mut searcher: Searcher<Manager<_>, _> = Searcher::new(Pos(0, 0));
     assert_eq!(
         searcher.next(),
         Some(vec![

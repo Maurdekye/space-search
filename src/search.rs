@@ -2,3 +2,4 @@
 
 pub mod guided;
 pub mod unguided;
+pub mod a_star;
