@@ -38,6 +38,6 @@ impl SolutionIdentifiable for Pos {
     }
 }
 
-let mut searcher: Searcher<search::unguided::no_route::hashable::Manager<_>, _> = Searcher::new(Pos(0, 0));
+let mut searcher: Searcher<search::unguided::no_route::hashable::Manager<_>> = Searcher::new(Pos(0, 0));
 assert_eq!(searcher.next(), Some(Pos(5, 5)));
 ```
