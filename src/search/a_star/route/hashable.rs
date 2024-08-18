@@ -21,11 +21,12 @@ where
     parents: Vec<StateParent<S>>,
 }
 
-impl<S> ExplorationManager<S> for Manager<S>
+impl<S> ExplorationManager for Manager<S>
 where
     S: CostSearchable + Clone + Eq + Hash,
     S::Score: Add<S::Score, Output = S::Score> + Zero + Clone,
 {
+    type State = S;
     type YieldResult = Vec<S>;
 
     type FringeItem = StateParentCumulativeCost<S, S::Score>;
@@ -127,7 +128,7 @@ fn test() {
         }
     }
 
-    let mut searcher: Searcher<Manager<_>, _> = Searcher::new(Pos(0, 0));
+    let mut searcher: Searcher<Manager<_>> = Searcher::new(Pos(0, 0));
     assert_eq!(
         searcher.next(),
         Some(vec![

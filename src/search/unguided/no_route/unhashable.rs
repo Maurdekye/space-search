@@ -11,10 +11,11 @@ pub struct Manager<S> {
     pub depth_first: bool,
 }
 
-impl<S> ExplorationManager<S> for Manager<S>
+impl<S> ExplorationManager for Manager<S>
 where
     S: Searchable,
 {
+    type State = S;
     type YieldResult = S;
 
     type FringeItem = NoContext<S>;
@@ -50,17 +51,13 @@ where
         self.fringe.push_back(item);
     }
 
-    fn register_current_state(&mut self, _item: &Self::FringeItem) -> Self::CurrentStateContext {
-        ()
-    }
+    fn register_current_state(&mut self, _item: &Self::FringeItem) -> Self::CurrentStateContext {}
 
     fn prepare_state(&self, _context: &Self::CurrentStateContext, state: S) -> Self::FringeItem {
         NoContext(state)
     }
 
-    fn next_states_iter(
-        current_state: &S,
-    ) -> impl Iterator<Item = Self::NextStatesIterItem> {
+    fn next_states_iter(current_state: &S) -> impl Iterator<Item = Self::NextStatesIterItem> {
         current_state.next_states()
     }
 }
@@ -86,6 +83,6 @@ fn test() {
         }
     }
 
-    let mut searcher: Searcher<Manager<_>, _> = Searcher::new(Pos(0, 0));
+    let mut searcher: Searcher<Manager<_>> = Searcher::new(Pos(0, 0));
     assert_eq!(searcher.next(), Some(Pos(5, 5)));
 }

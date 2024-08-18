@@ -42,7 +42,7 @@
 //! assert_eq!(searcher.next(), Some(Pos(5, 5)));
 //! ```
 
-use std::{collections::VecDeque, marker::PhantomData};
+use std::collections::VecDeque;
 
 pub mod search;
 
@@ -244,13 +244,14 @@ impl<S, C> From<StateParentCumulativeCost<S, C>> for StateParent<S> {
 /// Internal.
 ///
 /// Trait abstracting all exploration managers' common functionality.
-pub trait ExplorationManager<S> {
+pub trait ExplorationManager {
+    type State;
     type YieldResult;
-    type FringeItem: AsRef<S>;
+    type FringeItem: AsRef<Self::State>;
     type CurrentStateContext;
     type NextStatesIterItem;
 
-    fn initialize(initial_state: S) -> Self;
+    fn initialize(initial_state: Self::State) -> Self;
     fn pop_state(&mut self) -> Option<Self::FringeItem>;
     fn prepare_result_from(&self, item: Self::FringeItem) -> Self::YieldResult;
     fn valid_state(&mut self, item: &Self::FringeItem) -> bool;
@@ -261,43 +262,43 @@ pub trait ExplorationManager<S> {
         context: &Self::CurrentStateContext,
         state: Self::NextStatesIterItem,
     ) -> Self::FringeItem;
-    fn next_states_iter(current_state: &S) -> impl Iterator<Item = Self::NextStatesIterItem>;
+    fn next_states_iter(
+        current_state: &Self::State,
+    ) -> impl Iterator<Item = Self::NextStatesIterItem>;
 }
 
 /// State space exploration iterator.
 ///
 /// Create an instance of this to explore a search space.
-pub struct Searcher<M, S> {
+pub struct Searcher<M> {
     pub manager: M,
-    _marker: PhantomData<S>,
 }
 
-impl<M, S> Searcher<M, S> {
+impl<M> Searcher<M> {
     /// Create a new search iterator from an initial state.
-    pub fn new(initial_state: S) -> Self
+    pub fn new(initial_state: M::State) -> Self
     where
-        M: ExplorationManager<S>,
+        M: ExplorationManager,
     {
         Self {
             manager: M::initialize(initial_state),
-            _marker: PhantomData,
         }
     }
 
     /// Create a new search iterator from a default initial state.
     pub fn new_with_default() -> Self
     where
-        S: Default,
-        M: ExplorationManager<S>,
+        M: ExplorationManager,
+        M::State: Default,
     {
         Self::new(Default::default())
     }
 }
 
-impl<M, S> Iterator for Searcher<M, S>
+impl<M> Iterator for Searcher<M>
 where
-    M: ExplorationManager<S>,
-    S: SolutionIdentifiable,
+    M: ExplorationManager,
+    M::State: SolutionIdentifiable,
 {
     type Item = M::YieldResult;
 
@@ -322,7 +323,7 @@ where
 }
 
 fn prepare_result_from_state_parent_map<S>(
-    parents: &Vec<StateParent<S>>,
+    parents: &[StateParent<S>],
     StateParent {
         mut state,
         parent: mut maybe_parent_index,

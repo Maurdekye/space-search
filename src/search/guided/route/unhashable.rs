@@ -14,10 +14,11 @@ where
     parents: Vec<StateParent<S>>,
 }
 
-impl<S> ExplorationManager<S> for Manager<S>
+impl<S> ExplorationManager for Manager<S>
 where
     S: Scoreable + Searchable + Clone,
 {
+    type State = S;
     type YieldResult = Vec<S>;
 
     type FringeItem = StateParent<S>;
@@ -55,7 +56,7 @@ where
 
     fn register_current_state(&mut self, item: &Self::FringeItem) -> Self::CurrentStateContext {
         self.parents.push(item.clone());
-        return self.parents.len() - 1;
+        self.parents.len() - 1
     }
 
     fn prepare_state(&self, context: &Self::CurrentStateContext, state: S) -> Self::FringeItem {
@@ -100,7 +101,7 @@ fn test() {
         }
     }
 
-    let mut searcher: Searcher<Manager<_>, _> = Searcher::new(Pos(0, 0));
+    let mut searcher: Searcher<Manager<_>> = Searcher::new(Pos(0, 0));
     assert_eq!(
         searcher.next(),
         Some(vec![

@@ -19,11 +19,12 @@ where
     fringe: BinaryHeap<OrderedSearchable<StateCumulativeCost<S, S::Score>, S::Score>>,
 }
 
-impl<S> ExplorationManager<S> for Manager<S>
+impl<S> ExplorationManager for Manager<S>
 where
     S: CostSearchable + Clone + Eq + Hash,
     S::Score: Add<S::Score, Output = S::Score> + Zero + Clone,
 {
+    type State = S;
     type YieldResult = S;
 
     type FringeItem = StateCumulativeCost<S, S::Score>;
@@ -120,6 +121,6 @@ fn test() {
         }
     }
 
-    let mut searcher: Searcher<Manager<_>, _> = Searcher::new(Pos(0, 0));
+    let mut searcher: Searcher<Manager<_>> = Searcher::new(Pos(0, 0));
     assert_eq!(searcher.next(), Some(Pos(5, 5)));
 }
